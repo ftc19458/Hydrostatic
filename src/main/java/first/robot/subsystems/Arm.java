@@ -12,12 +12,9 @@ public class Arm {
   private final ExpansionHubMotor pivot;
   private final ExpansionHubMotor liftLeft;
   private final ExpansionHubMotor liftRight;
-  private double liftTarget;
   
-  private static final double PIVOT_POWER_MULT = 1;  // Adjust for sensitivity
-  private static final double LIFT_STEP = 20.0;      // Encoder counts per loop while D-pad is held
-  private static final double LIFT_MIN = 0.0;
-  private static final double LIFT_MAX = 10000.0;  // Adjust based on your lift's range
+  private static final double PIVOT_POWER_MULT = -1;  // Adjust for sensitivity
+  private static final double LIFT_POWER = 0.7;       // Adjust for lift speed
   
   /**
    * Constructor for Arm subsystem.
@@ -36,10 +33,6 @@ public class Arm {
     this.pivot.setFloatOn0(false);
     this.liftLeft.setFloatOn0(false);
     this.liftRight.setFloatOn0(false);
-
-    // Use encoder counts directly for closed-loop lift position control.
-    this.liftLeft.setDistancePerCount(1.0);
-    this.liftRight.setDistancePerCount(1.0);
   }
   
   /**
@@ -52,17 +45,16 @@ public class Arm {
     double pivotPower = -gamepad.getRightY() * PIVOT_POWER_MULT;
     pivot.setThrottle(pivotPower);
     
-    // D-pad nudges the lift target; motor PID holds target when released.
+    // Control lift with D-pad up/down
+    double liftPower = 0;
     if (gamepad.getDpadUpButton()) {
-      liftTarget += LIFT_STEP;
+      liftPower = LIFT_POWER;  // Lift up
     } else if (gamepad.getDpadDownButton()) {
-      liftTarget -= LIFT_STEP;
+      liftPower = -LIFT_POWER; // Lift down
     }
-
-    liftTarget = clamp(liftTarget, LIFT_MIN, LIFT_MAX);
     
-    liftLeft.setPositionSetpoint(liftTarget);
-    liftRight.setPositionSetpoint(liftTarget);
+    liftLeft.setThrottle(liftPower);
+    liftRight.setThrottle(liftPower);
   }
   
   /**
@@ -70,16 +62,15 @@ public class Arm {
    */
   public void stop() {
     pivot.setThrottle(0);
-    liftTarget = liftLeft.getEncoderPosition();
-    liftLeft.setPositionSetpoint(liftTarget);
-    liftRight.setPositionSetpoint(liftTarget);
+    liftLeft.setThrottle(0);
+    liftRight.setThrottle(0);
   }
   
   /**
    * Get current pivot encoder position.
    * 
    * @return Pivot position in encoder counts
-   */
+   */g
   public double getPivotPosition() {
     return pivot.getEncoderPosition();
   }
@@ -91,9 +82,5 @@ public class Arm {
    */
   public double getLiftPosition() {
     return liftLeft.getEncoderPosition();
-  }
-
-  private static double clamp(double value, double min, double max) {
-    return Math.max(min, Math.min(max, value));
   }
 }
