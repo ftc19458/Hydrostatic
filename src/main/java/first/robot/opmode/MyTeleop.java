@@ -4,58 +4,24 @@
 
 package first.robot.opmode;
 
-import org.wpilib.drive.MecanumDrive;
 import org.wpilib.driverstation.Gamepad;
-import org.wpilib.hardware.expansionhub.ExpansionHubMotor;
-import org.wpilib.hardware.imu.OnboardIMU;
-import org.wpilib.hardware.imu.OnboardIMU.MountOrientation;
 import org.wpilib.math.util.MathUtil;
 import org.wpilib.opmode.PeriodicOpMode;
 import org.wpilib.opmode.Teleop;
 import first.robot.Robot;
-import first.robot.subsystems.Arm;
+import org.wpilib.smartdashboard.SmartDashboard;
 
-@Teleop
+@Teleop(name="Demo Teleop")
 public class MyTeleop extends PeriodicOpMode {
   private final Robot robot;
 
   Gamepad gamepad = new Gamepad(0);
 
-  ExpansionHubMotor fr = new ExpansionHubMotor(3,0 );
-  ExpansionHubMotor fl = new ExpansionHubMotor(0,1 );
-  ExpansionHubMotor bl = new ExpansionHubMotor(0,3 );
-  ExpansionHubMotor br = new ExpansionHubMotor(3,1 );
-
-  ExpansionHubMotor pivot = new ExpansionHubMotor(0, 0);
-  ExpansionHubMotor liftLeft = new ExpansionHubMotor(0, 2);
-  ExpansionHubMotor liftRight = new ExpansionHubMotor(3, 2);
-
-  OnboardIMU imu = new OnboardIMU(MountOrientation.PORTRAIT);
-  
-  Arm arm;
-
-
-  MecanumDrive drive;
-  
+  private boolean driveFieldCentric = true;
 
   /** The Robot instance is passed into the opmode via the constructor. */
   public MyTeleop(Robot robot) {
-    fl.setFloatOn0(false);
-    fr.setFloatOn0(false);
-    br.setFloatOn0(false);
-    bl.setFloatOn0(false);
-
-
-    fl.setReversed(true);
-    bl.setReversed(true);    
-
-
-    drive = new MecanumDrive(fl::setThrottle, bl::setThrottle, fr::setThrottle, br::setThrottle);
-
-    drive.setDeadband(0.5);
     this.robot = robot;
-    
-    arm = new Arm(pivot, liftLeft, liftRight);
   }
 
   @Override
@@ -65,22 +31,45 @@ public class MyTeleop extends PeriodicOpMode {
 
   @Override
   public void start() {
-    imu.resetYaw();
-    
+    robot.imu.resetYaw();
   }
 
   @Override
   public void periodic() {
+    if (gamepad.getLeftStickButton()) {
+      driveFieldCentric = !driveFieldCentric;
+    }
+
+    double drive = MathUtil.applyDeadband(-gamepad.getLeftY(), 0.1);
+    double strafe = MathUtil.applyDeadband(gamepad.getLeftX(), 0.1);
+    double turn = MathUtil.applyDeadband(gamepad.getRightX(), 0.1);
+    var yaw = robot.imu.getRotation2d();
+
+    if (driveFieldCentric) {
+      robot.drive.driveCartesian(drive, strafe, turn, yaw.times(-1));
+    } else {
+      robot.drive.driveCartesian(drive, strafe, turn);
+    }
+
     /* Called periodically (on every DS packet) while the robot is enabled. */
-    drive.driveCartesian(MathUtil.applyDeadband(gamepad.getLeftY(), 0.1),  MathUtil.applyDeadband(-gamepad.getLeftX(),0.1), gamepad.getRightX(),imu.getRotation2d().times(-1));
-    arm.update(gamepad);
-    
+    robot.arm.update(gamepad);
+
+    SmartDashboard.putBoolean("field centric", driveFieldCentric);
+
+    SmartDashboard.putNumber("drive", drive);
+    SmartDashboard.putNumber("strafe", strafe);
+    SmartDashboard.putNumber("turn", turn);
+
+    SmartDashboard.putString("yaw", yaw.toString());
+
+    SmartDashboard.putNumber("pivot", robot.arm.getPivotPosition());
+    SmartDashboard.putNumber("lift", robot.arm.getLiftPosition());
   }
 
   @Override
   public void end() {
     /* Called when the robot is disabled (after previously being enabled). */
-    arm.stop();
+    robot.arm.stop();
   }
 
   @Override

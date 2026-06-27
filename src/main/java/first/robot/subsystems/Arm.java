@@ -9,30 +9,20 @@ import org.wpilib.driverstation.Gamepad;
  * - D-pad up/down controls the lift
  */
 public class Arm {
-  private final ExpansionHubMotor pivot;
-  private final ExpansionHubMotor liftLeft;
-  private final ExpansionHubMotor liftRight;
+  private final ExpansionHubMotor pivot = new ExpansionHubMotor(0, 0);
+  private final ExpansionHubMotor liftLeft = new ExpansionHubMotor(0, 2);
+  private final ExpansionHubMotor liftRight = new ExpansionHubMotor(3, 2);
   
   private static final double PIVOT_POWER_MULT = -1;  // Adjust for sensitivity
   private static final double LIFT_POWER = 0.7;       // Adjust for lift speed
-  
-  /**
-   * Constructor for Arm subsystem.
-   * 
-   * @param pivot Motor controlling the pivot (arm rotation)
-   * @param liftLeft Left lift motor
-   * @param liftRight Right lift motor
-   */
-  public Arm(ExpansionHubMotor pivot, ExpansionHubMotor liftLeft, ExpansionHubMotor liftRight) {
-    this.pivot = pivot;
-    this.liftLeft = liftLeft;
-    this.liftRight = liftRight;
-    this.liftTarget = liftLeft.getEncoderPosition();
-    
+
+  public Arm() {
     // Set braking behavior
     this.pivot.setFloatOn0(false);
     this.liftLeft.setFloatOn0(false);
     this.liftRight.setFloatOn0(false);
+    this.liftLeft.setReversed(true);
+    this.liftRight.setReversed(true);
   }
   
   /**
@@ -42,7 +32,7 @@ public class Arm {
    */
   public void update(Gamepad gamepad) {
     // Control pivot with right stick Y (inverted so up = positive)
-    double pivotPower = -gamepad.getRightY() * PIVOT_POWER_MULT;
+    double pivotPower = (gamepad.getRightTriggerAxis() - gamepad.getLeftTriggerAxis()) * PIVOT_POWER_MULT;
     pivot.setThrottle(pivotPower);
     
     // Control lift with D-pad up/down
@@ -70,7 +60,7 @@ public class Arm {
    * Get current pivot encoder position.
    * 
    * @return Pivot position in encoder counts
-   */g
+   */
   public double getPivotPosition() {
     return pivot.getEncoderPosition();
   }
